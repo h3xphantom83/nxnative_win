@@ -79,6 +79,26 @@ All required checks should pass before attempting a game build.
 
 ## 4. Install missing components
 
+### Guided repair recommendations
+
+When required dependencies are missing, the setup assistant displays a
+`RECOMMENDED ACTIONS` section with component-specific instructions.
+
+For example, if LLVM-MinGW is missing:
+
+```powershell
+py -3.12 scripts/check_windows_setup.py --fix
+```
+
+For missing Metal Developer Tools, the assistant directs developers to
+Apple's official download page. For SDK configuration problems, it explains
+how to correct the configured path.
+
+These recommendations are informational. The setup assistant does not
+automatically download or install dependencies.
+
+
+
 The existing Windows doctor supports several explicit installation actions.
 
 Download the pinned LLVM-MinGW toolchain:

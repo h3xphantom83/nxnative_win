@@ -49,6 +49,48 @@ def run_checks():
                 os.environ[key] = value
 
 
+def remediation(probe):
+    """Return actionable instructions for a failed dependency."""
+    steps = {
+        "llvm": (
+            "Install LLVM-MinGW using the existing Windows doctor:\n"
+            "  py -3.12 scripts/check_windows_setup.py --fix"
+        ),
+        "lld": (
+            "The Mach-O linker is provided by LLVM-MinGW.\n"
+            "Verify the LLVM installation and rerun the dependency checker:\n"
+            "  py -3.12 scripts/check_windows_setup.py"
+        ),
+        "dotnet": (
+            "Install the .NET SDK 10 from Microsoft's official downloads:\n"
+            "  https://dotnet.microsoft.com/download/dotnet/10.0"
+        ),
+        "metal": (
+            "Install Metal Developer Tools for Windows from Apple:\n"
+            "  https://developer.apple.com/download/all/?q=metal%20developer%20tools"
+        ),
+        "zstd": (
+            "Install the zstd command-line utility:\n"
+            "  https://github.com/facebook/zstd/releases"
+        ),
+        "ios_sdk": (
+            "Configure a valid iPhoneOS SDK with NSPB_IOS_SDK, or import one:\n"
+            "  py -3.12 scripts/check_windows_setup.py --import-sdk <SDK_FOLDER>\n"
+            "Obtain and use SDK files only in accordance with applicable licenses."
+        ),
+    }
+
+    if probe.id == "ios_sdk" and tc.setting("ios_sdk"):
+        return (
+            "Correct the configured SDK path or remove the override.\n"
+            "Current SDK: " + tc.setting("ios_sdk") + "\n"
+            "PowerShell, current session:\n"
+            "  Remove-Item Env:NSPB_IOS_SDK"
+        )
+
+    return steps.get(probe.id, probe.hint or "Review the dependency checker output.")
+
+
 def main():
     print()
     print("=" * 62)
@@ -85,6 +127,14 @@ def main():
 
     if missing:
         print(f"{len(missing)} required component(s) need attention.")
+        print()
+        print("RECOMMENDED ACTIONS")
+        print("-" * 62)
+
+        for probe in missing:
+            print()
+            print(f"{probe.name}:")
+            print(remediation(probe))
         print()
         print("Resolve the issues above and rerun:")
         print("  py -3.12 scripts/setup_windows.py")
