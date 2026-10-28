@@ -23,6 +23,7 @@ from nxnative_gui_core import BuildOptions, build_arguments, validate
 
 from nxnative_gui_paths import find_repo
 from nxnative_gui_dependencies import doctor_args, parse_doctor_json, summarize
+from nxnative_gui_readiness import readiness_counts
 
 try:
     REPO = find_repo(module_file=__file__)
@@ -121,14 +122,10 @@ class Window(QMainWindow):
         self.game = PathSelector('folder', 'Select NSP source folder')
         self.keys = PathSelector('file', 'Select prod.keys file')
         self.ipa = PathSelector('saveipa', 'Save IPA as')
-        self.image = PathSelector('romfs', 'Select extracted RomFS.img (optional)')
-        self.romfs_out = PathSelector('folder', 'Select ROMFS output directory (optional)')
         self.python = PathSelector('file', 'Select Python executable')
         form.addRow('Game / NSP folder', self.game)
         form.addRow('Keys file', self.keys)
         form.addRow('Output IPA', self.ipa)
-        form.addRow('RomFS.img (optional)', self.image)
-        form.addRow('ROMFS output (optional)', self.romfs_out)
         form.addRow('Python interpreter', self.python)
         vertical.addWidget(group)
 
@@ -207,12 +204,37 @@ class Window(QMainWindow):
         controls.addStretch()
         layout.addLayout(controls)
         self.doctor_summary = QLabel('Not checked')
+        self.doctor_summary.setStyleSheet('font-weight: 600;')
         layout.addWidget(self.doctor_summary)
+        overview = QGroupBox('Build readiness')
+        overview_layout = QHBoxLayout(overview)
+        self.readiness_passed = QLabel('0/0 required passed')
+        self.readiness_issues = QLabel('0 required issues')
+        self.readiness_optional = QLabel('0 optional unavailable')
+        for label in (self.readiness_passed, self.readiness_issues, self.readiness_optional):
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setMinimumHeight(38)
+            overview_layout.addWidget(label, 1)
+        layout.addWidget(overview)
+        self.show_readiness(None)
         self.doctor_details = QPlainTextEdit()
         self.doctor_details.setReadOnly(True)
         self.doctor_details.setPlaceholderText('Click Refresh dependencies to inspect the build environment.')
         layout.addWidget(self.doctor_details, 1)
         self.main_tabs.addTab(page, 'Dependencies')
+
+    def show_readiness(self, rows):
+        counts = readiness_counts(rows)
+        self.readiness_passed.setText(f"{counts['passed']}/{counts['required']} required passed")
+        self.readiness_issues.setText(f"{counts['issues']} required issues")
+        self.readiness_optional.setText(f"{counts['optional_missing']} optional unavailable")
+        if rows:
+            color = '#197a3d' if not counts['issues'] else '#a33a26'
+        else:
+            color = '#777777'
+        self.readiness_passed.setStyleSheet(f'font-weight: 600; color: {color};')
+        self.readiness_issues.setStyleSheet(f'font-weight: 600; color: {color};')
+        self.readiness_optional.setStyleSheet('color: #777777;')
 
     def refresh_dependencies(self):
         if self.doctor_process.state() != QProcess.ProcessState.NotRunning:
@@ -220,11 +242,13 @@ class Window(QMainWindow):
         py = Path(self.python.value().strip())
         if not py.is_file():
             self.doctor_summary.setText('Select an existing Python executable in Build IPA first.')
+            self.show_readiness(None)
             return
         self.doctor_buffer = bytearray()
         self.doctor_pending = True
         self.doctor_refresh.setEnabled(False)
         self.doctor_summary.setText('Checking dependencies…')
+        self.show_readiness(None)
         self.doctor_details.setPlainText('Running Windows toolchain diagnostics…')
         env = QProcessEnvironment.systemEnvironment()
         env.insert('PYTHONIOENCODING', 'utf-8')
@@ -243,6 +267,7 @@ class Window(QMainWindow):
             self.doctor_pending = False
             self.doctor_refresh.setEnabled(True)
             self.doctor_summary.setText('Unable to start dependency checker')
+            self.show_readiness(None)
             self.doctor_details.setPlainText(self.doctor_process.errorString())
 
     def doctor_finished(self, code, status):
@@ -254,9 +279,11 @@ class Window(QMainWindow):
             rows = parse_doctor_json(output)
         except ValueError as exc:
             self.doctor_summary.setText('Dependency report could not be read')
+            self.show_readiness(None)
             self.doctor_details.setPlainText(f'{exc}\n\n{output[:6000]}')
             return
-        self.doctor_summary.setText(summarize(rows))
+        self.show_readiness(rows)
+        self.doctor_summary.setText(str(readiness_counts(rows)['status']) + ' — ' + summarize(rows))
         lines = []
         for row in rows:
             state = row['state'].upper()
@@ -277,16 +304,12 @@ class Window(QMainWindow):
         self.full.setEnabled(not skipped)
         self.manifest.setEnabled(not skipped)
         self.shard.setEnabled(not skipped)
-        self.romfs_out.setEnabled(not skipped)
-        self.image.setEnabled(not skipped)
 
     def restore(self):
         defaults = {
             'game': r'E:\NXBuild\Luigi3_ColdBuild_Test\GameSource',
             'keys': r'E:\Nintendo Switch\prod.keys',
             'ipa': r'E:\NXBuild\Luigi3_ColdBuild_Test\Luigi3_Complete.ipa',
-            'image': r'E:\NXBuild\Luigi3_ColdBuild_Test\GameSource\0100DCA0064A6000_build\extract\v327680\RomFS.img',
-            'romfs_out': '',
             'python': r'E:\nxnative_clean_test\.venv\Scripts\python.exe',
         }
         for name, default in defaults.items():
@@ -299,11 +322,13 @@ class Window(QMainWindow):
             saved = self.settings.value(field, None)
             if saved is not None:
                 widget.setChecked(str(saved).lower() in ('true', '1'))
+        self.settings.remove('image')
+        self.settings.remove('romfs_out')
         self.shard.setValue(int(self.settings.value('shard', 200)))
         self.toggle_romfs_controls(self.skip.isChecked())
 
     def save_settings(self):
-        for name in ['game', 'keys', 'ipa', 'image', 'romfs_out', 'python']:
+        for name in ['game', 'keys', 'ipa', 'python']:
             self.settings.setValue(name, getattr(self, name).value())
         for name in ['allow_metal', 'validate_ipa', 'full', 'manifest', 'skip']:
             self.settings.setValue(name, getattr(self, name).isChecked())
@@ -312,8 +337,7 @@ class Window(QMainWindow):
     def options(self):
         return BuildOptions(
             game_folder=self.game.value(), keys_file=self.keys.value(),
-            ipa_file=self.ipa.value(), romfs_image=self.image.value(),
-            romfs_output=self.romfs_out.value(), shard_mib=self.shard.value(),
+            ipa_file=self.ipa.value(), shard_mib=self.shard.value(),
             skip_romfs=self.skip.isChecked(), verify_romfs_full=self.full.isChecked(),
             write_romfs_manifest=self.manifest.isChecked(),
             validate_ipa=self.validate_ipa.isChecked(), allow_other_metal=self.allow_metal.isChecked(),
@@ -322,7 +346,7 @@ class Window(QMainWindow):
     def update_controls(self, running):
         self.start.setEnabled(not running)
         self.stop.setEnabled(running)
-        for widget in [self.game, self.keys, self.ipa, self.image, self.romfs_out, self.python,
+        for widget in [self.game, self.keys, self.ipa, self.python,
                        self.allow_metal, self.validate_ipa, self.full, self.manifest, self.skip, self.shard]:
             widget.setEnabled(not running)
         if not running:
@@ -343,6 +367,8 @@ class Window(QMainWindow):
         # For safety, do not print the keys-file argument or its path in logs.
         self.append_log(f'[GUI] Starting Windows build with Python: {py}')
         self.append_log(f'[GUI] IPA destination: {opts.ipa_file}')
+        if not opts.skip_romfs:
+            self.append_log("[GUI] ROMFS destination (automatic): {}".format(Path(opts.ipa_file).resolve().parent / 'romfs'))
         self.append_log('[GUI] Extra checks: IPA={} ROMFS-full={} manifest={}'.format(
             opts.validate_ipa, opts.verify_romfs_full, opts.write_romfs_manifest))
         self.update_controls(True)
