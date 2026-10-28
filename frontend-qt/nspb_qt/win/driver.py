@@ -328,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.argv[0] = str(repo / 'scripts' / 'build_ipa_from_nsp.py')
     from . import romfs_integration as romfs_auto
     try:
+        argv, verify_full, write_manifest = romfs_auto.extract_integrity_flags(argv)
         upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image = romfs_auto.extract_flags(argv)
     except (ValueError, TypeError) as exc:
         raise SystemExit(f'[ROMFSARC] Invalid argument: {exc}') from exc
@@ -337,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     if '-h' in upstream_args or '--help' in upstream_args:
         return result
     try:
-        result = romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image)
+        result = romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image, verify_full=verify_full, write_manifest=write_manifest)
         if result == 0:
             from . import progress_reporting as win_progress
             ipa = romfs_auto.get_option(upstream_args, '-o')

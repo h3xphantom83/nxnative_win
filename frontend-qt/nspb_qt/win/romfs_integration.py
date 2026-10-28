@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
+import sys
 import struct
 from pathlib import Path
 
@@ -131,7 +133,53 @@ def verify_archive(image, folder, packer):
         return False, str(error)
 
 
-def finish_build(repo, args, skip, output, shard_mib, image_override=None):
+
+def extract_integrity_flags(argv):
+    """Strip Windows integrity flags without changing extract_flags's interface."""
+    remaining = []
+    verify_full = False
+    write_manifest = False
+
+    for arg in argv:
+        if arg == '--romfs-verify-full':
+            verify_full = True
+        elif arg == '--romfs-write-manifest':
+            write_manifest = True
+        else:
+            remaining.append(arg)
+
+    return remaining, verify_full, write_manifest
+
+
+def run_integrity(repo, image, folder, verify_full=False, write_manifest=False):
+    """Run optional source-byte and SHA256 verification."""
+    if not (verify_full or write_manifest):
+        return
+
+    verifier = repo / 'dm' / 'tools' / 'romfs_integrity.py'
+    if not verifier.is_file():
+        raise FileNotFoundError(f'ROMFS integrity verifier missing: {verifier}')
+
+    manifest = folder / 'romfs.sha256.json'
+
+    cmd = [sys.executable, '-u', str(verifier), str(image), str(folder)]
+
+    if manifest.is_file():
+        cmd.append('--check-manifest')
+        print('[ROMFSARC] Checking source bytes and existing SHA256 manifest',
+              flush=True)
+    elif write_manifest:
+        cmd.append('--write-manifest')
+        print('[ROMFSARC] Verifying source and creating SHA256 manifest',
+              flush=True)
+    else:
+        print('[ROMFSARC] Full source verification (no manifest present)',
+              flush=True)
+
+    subprocess.run(cmd, check=True)
+
+
+def finish_build(repo, args, skip, output, shard_mib, image_override=None, verify_full=False, write_manifest=False):
     if skip:
         print('[ROMFSARC] Skipped (--skip-romfs)')
         return 0
@@ -150,6 +198,7 @@ def finish_build(repo, args, skip, output, shard_mib, image_override=None):
             raise RuntimeError(f'Existing ROMFS output is not reusable: {output}: {detail}. '
                                'Do not overwrite it; specify a new --romfs-output directory.')
         print(f'[ROMFSARC] Reusing verified {output} ({detail})')
+        run_integrity(repo, image, output, verify_full, write_manifest)
         return 0
     print(f'[ROMFSARC] Packing {image} -> {output}', flush=True)
     packer.pack(image, output, shard_mib)
@@ -157,4 +206,5 @@ def finish_build(repo, args, skip, output, shard_mib, image_override=None):
     if not valid:
         raise RuntimeError(f'Generated ROMFS archive failed verification: {detail}')
     print(f'[ROMFSARC] Complete: {output} ({detail})', flush=True)
+    run_integrity(repo, image, output, verify_full, write_manifest)
     return 0
