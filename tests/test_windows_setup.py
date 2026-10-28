@@ -193,3 +193,22 @@ def test_incorrect_python_dependency_version(monkeypatch):
 
     assert not probes[0].ok
     assert "installed 4.4.4; expected 4.4.5" in probes[0].detail
+
+
+def test_python_dependency_hint_uses_real_newline(monkeypatch):
+    setup = load_setup()
+
+    def missing_package(name):
+        raise setup.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(setup.metadata, "version", missing_package)
+
+    probes = setup.python_package_probes()
+
+    assert len(probes) == 4
+    assert all(not probe.ok for probe in probes)
+
+    for probe in probes:
+        assert "\n" in probe.hint
+        assert r"\n" not in probe.hint
+        assert "requirements-windows.txt" in probe.hint

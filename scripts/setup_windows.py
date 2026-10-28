@@ -61,7 +61,7 @@ def python_package_probes():
                 "ok" if valid else "missing",
                 f"installed {installed or 'not found'}; expected {expected}",
                 hint=(
-                    "Install the tested Python dependencies:\\n"
+                    "Install the tested Python dependencies:\n"
                     "  python -m pip install -r requirements-windows.txt"
                 ),
             )
