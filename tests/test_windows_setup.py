@@ -127,3 +127,69 @@ def test_setup_prints_remediation_command(monkeypatch, capsys):
     assert "RECOMMENDED ACTIONS" in output
     assert "check_windows_setup.py --fix" in output
     assert "LLVM (clang)" in output
+
+
+def test_python_dependencies_present(monkeypatch):
+    setup = load_setup()
+
+    expected = {
+        "lz4": "4.4.5",
+        "capstone": "5.0.9",
+        "fonttools": "4.68.0",
+        "backports.zstd": "1.8.0",
+    }
+
+    monkeypatch.setattr(
+        setup.metadata,
+        "version",
+        lambda name: expected[name],
+    )
+
+    probes = setup.python_package_probes()
+
+    assert len(probes) == 4
+    assert all(probe.ok for probe in probes)
+
+
+def test_missing_python_dependency(monkeypatch):
+    setup = load_setup()
+
+    def fake_version(name):
+        if name == "lz4":
+            raise setup.metadata.PackageNotFoundError(name)
+        return {
+            "capstone": "5.0.9",
+            "fonttools": "4.68.0",
+            "backports.zstd": "1.8.0",
+        }[name]
+
+    monkeypatch.setattr(setup.metadata, "version", fake_version)
+
+    probes = setup.python_package_probes()
+    missing = [probe for probe in probes if not probe.ok]
+
+    assert len(missing) == 1
+    assert missing[0].name == "Python: lz4"
+    assert "requirements-windows.txt" in missing[0].hint
+
+
+def test_incorrect_python_dependency_version(monkeypatch):
+    setup = load_setup()
+
+    versions = {
+        "lz4": "4.4.4",
+        "capstone": "5.0.9",
+        "fonttools": "4.68.0",
+        "backports.zstd": "1.8.0",
+    }
+
+    monkeypatch.setattr(
+        setup.metadata,
+        "version",
+        lambda name: versions[name],
+    )
+
+    probes = setup.python_package_probes()
+
+    assert not probes[0].ok
+    assert "installed 4.4.4; expected 4.4.5" in probes[0].detail

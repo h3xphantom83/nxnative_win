@@ -33,6 +33,25 @@ git clone -b windows-dev https://github.com/h3xphantom83/nxnative_win.git
 cd nxnative_win
 ```
 
+### Install Python build dependencies
+
+Use a dedicated Python 3.12 virtual environment:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-windows.txt
+```
+
+Then use the virtual environment's interpreter for subsequent commands:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/setup_windows.py
+.\.venv\Scripts\python.exe scripts/build_ipa_windows.py --help
+```
+
+This keeps project dependencies separate from the system Python
+installation.
+
 ## 2. Run the Windows setup assistant
 
 For a first-time installation, start with:

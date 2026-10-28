@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+from importlib import metadata
 from pathlib import Path
 
 if sys.version_info[:2] != (3, 12):
@@ -34,13 +35,48 @@ from nspb_qt.win import shim
 from nspb_qt.win import toolchain as tc
 
 
+def python_package_probes():
+    """Check pinned Python packages without importing their modules."""
+    packages = {
+        "lz4": "4.4.5",
+        "capstone": "5.0.9",
+        "fonttools": "4.68.0",
+        "backports.zstd": "1.8.0",
+    }
+
+    probes = []
+
+    for package, expected in packages.items():
+        try:
+            installed = metadata.version(package)
+        except metadata.PackageNotFoundError:
+            installed = None
+
+        valid = installed == expected
+
+        probes.append(
+            tc.Probe(
+                "python_" + package,
+                "Python: " + package,
+                "ok" if valid else "missing",
+                f"installed {installed or 'not found'}; expected {expected}",
+                hint=(
+                    "Install the tested Python dependencies:\\n"
+                    "  python -m pip install -r requirements-windows.txt"
+                ),
+            )
+        )
+
+    return probes
+
+
 def run_checks():
     env = shim.build_env()
     previous = {key: os.environ.get(key) for key in env}
 
     try:
         os.environ.update(env)
-        return tc.check_all(deep=True)
+        return [*tc.check_all(deep=True), *python_package_probes()]
     finally:
         for key, value in previous.items():
             if value is None:
