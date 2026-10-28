@@ -600,6 +600,12 @@ def ios_sdk() -> Path | None:
     Accepting only a folder that looks like an SDK keeps a stale or half-extracted download from
     being reported as `ok` and then failing deep inside the build.
     """
+    # Explicit SDK configuration must not silently fall back.
+    selected = setting('ios_sdk')
+    if selected:
+        sdk = Path(selected)
+        return sdk if is_sdk_dir(sdk) else None
+
     for p in _sdk_candidates():
         if is_sdk_dir(p):
             return p
@@ -1060,10 +1066,19 @@ def check_all(deep: bool = False) -> list[Probe]:
     # ---- the SDK
     sdk = ios_sdk()
     if not sdk:
-        out.append(Probe('ios_sdk', f'iPhoneOS SDK {SDK_PINNED[:-4]}', 'missing',
-                         'no iPhoneOS*.sdk folder',
-                         hint='Download it in the app, or point toolchain.json "ios_sdk" at one',
-                         pinned=SDK_PINNED))
+        selected = setting('ios_sdk')
+        if selected:
+            detail = f'configured SDK path is missing or invalid: {selected}'
+            hint = ('Correct NSPB_IOS_SDK or the ios_sdk setting in toolchain.json; '
+                    'remove the override to use automatic SDK discovery')
+        else:
+            detail = 'no usable iPhoneOS*.sdk folder found'
+            hint = ('Install an iPhoneOS SDK, or configure NSPB_IOS_SDK '
+                    'to point to an existing SDK')
+
+        out.append(Probe('ios_sdk', 'iPhoneOS SDK', 'missing',
+                         detail, hint=hint, pinned=SDK_PINNED,
+                         path=selected or ''))
     else:
         ver, build = sdk_version(sdk)
         maj = sdk_major(ver)

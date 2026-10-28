@@ -8,7 +8,7 @@ are not required for this tested build path.
 ## Requirements
 
 - Windows 11 x64 (tested configuration; other Windows versions not yet verified)
-- Python 3.12 or newer, with the `py` launcher
+- Python 3.12.x required, with the `py` launcher (Python 3.13 is not supported)
 - Git for Windows
 - .NET SDK 10
 - LLVM-MinGW with ARM64 Apple cross-compilation support
@@ -36,19 +36,19 @@ cd nxnative_win
 ## 2. Check the development environment
 
 ```powershell
-py scripts/check_windows_setup.py
+py -3.12 scripts/check_windows_setup.py
 ```
 
 For a faster check without compiler probes:
 
 ```powershell
-py scripts/check_windows_setup.py --no-probe
+py -3.12 scripts/check_windows_setup.py --no-probe
 ```
 
 For machine-readable diagnostics:
 
 ```powershell
-py scripts/check_windows_setup.py --json
+py -3.12 scripts/check_windows_setup.py --json
 ```
 
 All required checks should pass before attempting a game build.
@@ -60,13 +60,13 @@ The existing Windows doctor supports several explicit installation actions.
 Download the pinned LLVM-MinGW toolchain:
 
 ```powershell
-py scripts/check_windows_setup.py --fix
+py -3.12 scripts/check_windows_setup.py --fix
 ```
 
 Import an existing iPhoneOS SDK:
 
 ```powershell
-py scripts/check_windows_setup.py --import-sdk "D:\SDKs\iPhoneOS27.0.sdk"
+py -3.12 scripts/check_windows_setup.py --import-sdk "D:\SDKs\iPhoneOS27.0.sdk"
 ```
 
 The doctor also supports `--sdk` and `--sdk-xip` for SDK acquisition.
@@ -133,7 +133,7 @@ file access.
 Run:
 
 ```powershell
-py scripts/check_windows_setup.py
+py -3.12 scripts/check_windows_setup.py
 ```
 
 Review the detected tool paths and error messages. The checker searches
@@ -175,7 +175,7 @@ Other games and developer configurations require separate validation.
 ## Developer diagnostics
 
 ```powershell
-py scripts/check_windows_setup.py --help
-py scripts/build_ipa_windows.py --help
-py scripts/check_windows_backend.py
+py -3.12 scripts/check_windows_setup.py --help
+py -3.12 scripts/build_ipa_windows.py --help
+py -3.12 scripts/check_windows_backend.py
 ```

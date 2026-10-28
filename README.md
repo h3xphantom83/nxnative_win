@@ -29,13 +29,13 @@ toolchain configuration, build instructions, and troubleshooting.
 Check your development environment:
 
 ```powershell
-py scripts/check_windows_setup.py
+py -3.12 scripts/check_windows_setup.py
 ```
 
 Build an unsigned IPA:
 
 ```powershell
-py scripts/build_ipa_windows.py "D:\\Games\\ExampleGame" -k "D:\\Keys\\prod.keys" -o "D:\\Output\\ExampleGame.ipa"
+py -3.12 scripts/build_ipa_windows.py "D:\\Games\\ExampleGame" -k "D:\\Keys\\prod.keys" -o "D:\\Output\\ExampleGame.ipa"
 ```
 
 **Development status:** This Windows workflow has been validated on one
