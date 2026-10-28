@@ -46,6 +46,9 @@ static NSString *romfs_locate(void) {
     }
     NSString *bundledImage = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"romfs.img"];
     NSString *documentFolder = [doc stringByAppendingPathComponent:@"romfs"];
+    // ROMFSARC directories contain romfs.idx instead of loose game files.
+    if ([fm fileExistsAtPath:[documentFolder stringByAppendingPathComponent:@"romfs.idx"]])
+        return documentFolder;
     if ([fm fileExistsAtPath:[documentFolder stringByAppendingPathComponent:@DM_GAME_ROMFS_MARKER]]) return documentFolder;
     if (romfs_image_complete(bundledImage)) return bundledImage;
     for (NSString *d in @[[doc stringByAppendingPathComponent:@"romfs"], [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"romfs"]])
