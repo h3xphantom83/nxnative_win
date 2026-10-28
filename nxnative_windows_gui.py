@@ -20,12 +20,13 @@ except ImportError:
 
 from nxnative_gui_core import BuildOptions, build_arguments, validate
 
-REPO = Path(__file__).resolve().parents[0]  # overridden below when installed in repo tools/gui
-if not (REPO / 'scripts' / 'build_ipa_windows.py').exists():
-    for candidate in [REPO.parent, REPO.parent.parent, REPO.parent.parent.parent]:
-        if (candidate / 'scripts' / 'build_ipa_windows.py').exists():
-            REPO = candidate
-            break
+from nxnative_gui_paths import find_repo
+
+try:
+    REPO = find_repo(module_file=__file__)
+except RuntimeError as exc:
+    print(f'[GUI] {exc}', file=sys.stderr)
+    raise SystemExit(2) from exc
 
 STAGES = re.compile(r"\[(\d+)/(\d+)\]")
 

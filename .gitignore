@@ -16,3 +16,8 @@ __pycache__/
 *.bak
 bin/
 obj/
+# nxnative Windows GUI packaging
+/dist/
+/releases/
+/build/pyinstaller/
+/nxnative_windows_gui.py.pre-release.bak
