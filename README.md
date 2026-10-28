@@ -225,7 +225,7 @@ Under each game: the IPA's size, and "60 fps with 1.2.0" where the game runs at 
 
 ## Pack an IPA
 
-Prefer a graphical interface to the command line? **[NXNative Windows][(https://github.com/LNPANDY/NX2Apple](https://github.com/h3xphantom83/nxnative_win/releases/tag/v0.2.0))** is a community fork with a windows app that runs this whole pipeline for you and packs the game files into a sharded RomFS archive for a slimmer IPA. It is a separate project that follows this one; the steps below are nxnative's own command-line way.
+Prefer a graphical interface to the command line? **[NXNative Windows][(https://github.com/h3xphantom83/nxnative_win/](https://github.com/h3xphantom83/nxnative_win/releases/tag/v0.2.0))** is a community fork with a windows app that runs this whole pipeline for you and packs the game files into a sharded RomFS archive for a slimmer IPA. It is a separate project that follows this one; the steps below are nxnative's own command-line way.
 
 **1. Get nxnative and its tools** (once, on a Mac with macOS 26.6 or later, [Xcode](https://apps.apple.com/app/xcode/id497799835) 27.1 and [Homebrew](https://brew.sh)). The shaders are tested with Xcode 27.1's Metal compiler. The script stops on another version and explains how to install the tested toolchain. Corruption reported with another compiler in [#242](https://github.com/seedds/nxnative/issues/242) is still under investigation.
 
