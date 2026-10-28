@@ -1,4 +1,4 @@
-# nxnative
+# nxnative_win
 
 Play your own Nintendo Switch games natively on iPhone and iPad. Bring your game (its NSP files) and your `prod.keys`; one script turns them into an IPA that you sideload.
 
