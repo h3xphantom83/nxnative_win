@@ -22,13 +22,13 @@ except ImportError:
 
 from nxnative_gui_core import BuildOptions, build_arguments, validate
 
-from nxnative_gui_paths import find_repo
+from nxnative_gui_repo import resolve_gui_repository
 from nxnative_gui_result import classify_result, show_result_dialog
 from nxnative_gui_dependencies import doctor_args, parse_doctor_json, summarize
 from nxnative_gui_readiness import readiness_counts
 
 try:
-    REPO = find_repo(module_file=__file__)
+    REPO = resolve_gui_repository(__file__)
 except RuntimeError as exc:
     print(f'[GUI] {exc}', file=sys.stderr)
     raise SystemExit(2) from exc
