@@ -318,7 +318,21 @@ def main(argv: list[str] | None = None) -> int:
     mod = load_upstream(repo)
     patch(mod, repo)
     sys.argv[0] = str(repo / 'scripts' / 'build_ipa_from_nsp.py')
-    return mod.cli(argv)
+    from . import romfs_integration as romfs_auto
+    try:
+        upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image = romfs_auto.extract_flags(argv)
+    except (ValueError, TypeError) as exc:
+        raise SystemExit(f'[ROMFSARC] Invalid argument: {exc}') from exc
+    result = mod.cli(upstream_args)
+    if result:
+        return result
+    if '-h' in upstream_args or '--help' in upstream_args:
+        return result
+    try:
+        return romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image)
+    except Exception as exc:
+        print(f'[ROMFSARC] ERROR: {exc}', file=sys.stderr)
+        return 1
 
 
 if __name__ == '__main__':
