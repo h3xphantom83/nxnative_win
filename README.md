@@ -178,3 +178,104 @@ Under each game: the IPA's size, and "60 fps with 1.2.0" where the game runs at 
 </tr>
 </table>
 <!-- end of gallery -->
+
+Pack an IPA on Windows
+nxnative_win is a Windows development fork of nxnative. Its nxnative Windows GUI v0.2.0 provides a graphical way to build unsigned, native ARM64 iOS IPAs from your own Nintendo Switch game files—without using macOS or Xcode for the build.
+
+Download the Windows application from the nxnative_win Releases page. The graphical builder orchestrates the existing Windows build pipeline; it does not include games, keys, proprietary Apple SDK files, or every tool required for cross-compilation. Game compatibility remains experimental. Generating an IPA does not guarantee it will run correctly on every iPhone or iPad.
+1. Set up the Windows build environment
+You will need:
+- A 64-bit Windows 10 or Windows 11 computer with enough free space for NSP extraction, intermediate build files, shaders, and the output IPA.
+- The nxnative_win source checkout, including its Windows build scripts and backend.
+- A compatible Python environment (Python 3.12 or newer) with the project's dependencies installed.
+- A working iOS ARM64 cross-compilation toolchain: LLVM/Clang and a Mach-O-compatible linker, an iPhoneOS SDK, Apple's Metal Developer Tools for Windows, and the other utilities identified by the project diagnostics.
+- Your own legally obtained game files and the corresponding prod.keys that you are authorized to use.
+See the [Windows Setup Guide](docs/WINDOWS_SETUP.md) for installation and toolchain configuration. From the repository root, you can also run the Windows setup helper:
+py -3.12 scripts/setup_windows.py
+Important: The downloadable Windows EXE packages the GUI, not the complete compiler/SDK environment. In the GUI, open the Dependencies tab to inspect required and optional tools before starting a build. Use the readiness summary and diagnostics to address missing requirements.
+2. Download and start the Windows GUI
+1. Download nxnative-gui-v0.2.0-win64.zip from Releases.
+2. Extract the entire archive to a folder. Keep the packaged executable and its supporting files together.
+3. Launch nxnative-gui.exe.
+4. Select the appropriate Python interpreter and make sure the GUI locates your nxnative_win source checkout.
+5. Open Dependencies and verify that the required build components are available.
+When launched from the development source checkout, the GUI prioritizes its own repository. If you run the packaged EXE from elsewhere and repository discovery cannot locate the source checkout, set NXNATIVE_REPO explicitly before launching it:
+$env:NXNATIVE_REPO = 'E:\nxnative_win'  # Change to your checkout path
+& 'C:\Path\To\nxnative-gui.exe'
+The override is optional when the GUI already detects the correct repository. It is especially useful if more than one nxnative checkout exists on the computer.
+3. Prepare a game's files
+Create a folder containing a game's base NSP, together with any update NSPs or DLC you are authorized to use. For example:
+D:\Games\ExampleGame\
+    ExampleGame [BASE_TITLE_ID][v0].nsp
+    ExampleGame Update [UPDATE_TITLE_ID][v327680].nsp
+The build pipeline detects available game content and uses the relevant update files. Different game versions may behave differently, and game-specific fixes are not guaranteed to apply to untested versions. Compressed or cartridge-derived input support depends on the installed extraction tools and the backend's supported formats.
+4. Build through the GUI
+In the Build interface:
+1. Select the folder containing the game's input files.
+2. Select your prod.keys file.
+3. Select the configured Python interpreter.
+4. Specify an output IPA path, such as D:\Output\ExampleGame.ipa.
+5. Leave Skip ROMFS disabled if you want the automatic ROMFS package generated alongside the IPA.
+6. Optionally enable Validate IPA after packaging. Additional options allow full ROMFS verification and manifest generation.
+7. Start the build and follow the live log and progress indicators.
+The build performs extraction, executable rewriting, shader splitting/translation/compilation, app generation, and IPA packaging. It also generates or reuses the ROMFS archive when enabled. An initial build can take considerably longer than later builds; repeat builds reuse extracted data, shaders, and other unchanged intermediate results.
+
+Post-build IPA validation runs after the IPA has been packaged. When enabled, the standalone validator checks archive integrity, application bundle metadata, and the ARM64 Mach-O executable before the GUI reports overall success. The completion dialog distinguishes success, failure, and user cancellation, and offers an output-folder shortcut after a successful build.
+5. Understand the output files
+With ROMFS enabled, an example destination looks like this:
+D:\Output\
+    ExampleGame.ipa
+    romfs\
+        romfs.idx
+        romfs.00
+        romfs.01
+        ...
+The GUI automatically chooses the romfs directory beside the IPA. Keep the ROMFS index and all numbered shards together and transfer the romfs directory to the installed application's Documents folder as required by this Windows workflow. The IPA alone does not necessarily contain the game's full ROMFS data. Previously generated, verified ROMFS data may be reused on later builds.
+
+Optional full ROMFS checks and a manifest are available if you need stronger integrity verification. Do not delete the game's retained build/work folder unless you intentionally want to force extraction and cache regeneration.
+6. Command-line alternative
+The Windows backend is also accessible without the GUI. From the nxnative_win repository root, run:
+py -3.12 scripts/build_ipa_windows.py `
+    'D:\Games\ExampleGame' `
+    -k 'D:\Keys\prod.keys' `
+    -o 'D:\Output\ExampleGame.ipa'
+See py -3.12 scripts/build_ipa_windows.py --help for current CLI options. The GUI remains the recommended entry point for users who prefer visual dependency checks, progress updates, automatic ROMFS destination handling, and graphical notifications.
+7. Install on an iPhone or iPad
+The generated IPA is unsigned. Sign and install it using an appropriate iOS sideloading method, such as AltStore or Sideloadly, in accordance with your device and signing setup. Some larger games may benefit from the Increased Memory Limit entitlement (com.apple.developer.kernel.increased-memory-limit) when available.
+
+Transfer the matching generated ROMFS directory into the application's Documents storage if required. The game name, icon, version, and available runtime settings are provided by the native iOS app created by the underlying nxnative pipeline. Device compatibility and performance vary by title, update version, and hardware.
+Play
+Settings. Depending on the game and build, the in-app launcher offers controls for frame rate, render scale, docked/handheld mode, game language, FPS display, and rumble. See [Settings](docs/settings.md) for details.
+
+Touch controls. Supported titles provide on-screen controller layouts, including 2D and 3D styles. In the 3D layout, swiping on the right side of the display can act as the right stick. A connected compatible game controller may hide the touch controls. The exact controls available depend on the title.
+
+Rumble and motion. Where supported, vibration uses the iPhone's haptic hardware or a connected controller. Motion-capable games may use compatible controller gyro input or the iPhone's sensors. Behavior depends on the device and controller; see the upstream settings and per-game notes.
+
+Game language. English is the default for many builds. Language selection requires that the game include the corresponding localization. In supported apps, language can also be changed through the launcher or runtime settings.
+
+Saves and logs. On iOS, check the Files app under the installed game's Documents directory. Typical files include save/, log.txt, and log.prev.txt. Preserve your save folder before reinstalling the IPA or changing sideloading tools.
+
+Runtime settings. Where supported, values in the application's Documents/env.txt can override settings in the launcher. Examples include:
+DM_OPMODE=0
+DM_FPS_TARGET=30
+DM_SHOW_FPS=1
+DM_LAUNCHER=0
+DM_OPMODE=0 selects handheld mode; DM_FPS_TARGET=30 requests a 30 FPS target; DM_SHOW_FPS=1 enables an FPS counter; and DM_LAUNCHER=0 bypasses the launcher. Actual behavior depends on the title and build. See [Settings](docs/settings.md) for additional options.
+
+Shader preparation and stutters. Some games may compile additional graphics resources on first launch or on first encountering a scene. The iOS runtime's shader/pipeline caches are distinct from the Windows build-time shader cache. Subsequent launches can be smoother when those runtime caches are reused.
+Known issues
+- This is an experimental native iOS compatibility project, not a conventional Nintendo Switch emulator. Some titles may fail to build, launch, or render correctly.
+- Game-specific limitations from upstream nxnative still apply. See [per-game notes](dm/games/README.md#games).
+- The upstream project lists missing amiibo and online functionality, along with title-specific graphics/audio issues.
+- Different iOS versions, iPhone/iPad models, toolchain versions, and game updates may produce different results.
+- Building an IPA does not automatically sign it, sideload it, or copy the generated ROMFS shards into the installed app.
+For developers
+nxnative_win retains the upstream native-execution and graphics-translation foundation while adding a Windows build driver, dependency diagnostics, automatic ROMFS management, and the PySide6 GUI.
+- Windows setup and build guide: [WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md)
+- Native pipeline details: [development.md](docs/development.md)
+- Game compatibility notes: [dm/games](dm/games/README.md#games)
+- Development/debugging notes: [docs/agents](docs/agents/README.md)
+- Contribution guidance: [CONTRIBUTING.md](CONTRIBUTING.md)
+The Windows GUI v0.2.0 workflow has been tested with Luigi's Mansion 3 v1.4.0, including automatic ROMFS handling, optional IPA validation, and repeat builds that reuse cached shaders. This is a successful development test, not a claim of universal game compatibility.
+License
+MIT (see LICENSE). Third-party components retain their respective licenses; see [dm/third_party](dm/third_party/README.md). Original nxnative authors and third-party projects remain credited in the repository acknowledgements.
