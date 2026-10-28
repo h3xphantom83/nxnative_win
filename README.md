@@ -4,6 +4,46 @@ Play your own Nintendo Switch games natively on iPhone and iPad. Bring your game
 
 It is not an emulator: the game's own code runs directly on the Apple chip, with Switch graphics rebuilt on Metal. Nothing from any game is in this repository, and the project is not affiliated with Nintendo or any game publisher.
 
+## Windows Support
+
+**nxnative_win** is a Windows-compatible development fork of
+[nxnative](https://github.com/seedds/nxnative).
+
+The `windows-dev` branch provides a Windows-native build pipeline for
+generating unsigned iOS IPAs without requiring macOS or Xcode.
+
+### Current status
+
+- Windows ARM64 iOS cross-compilation using LLVM-MinGW
+- Metal shader compilation using Apple's Windows Metal Developer Tools
+- iPhoneOS SDK support
+- ROMFSARC game-data support
+- Command-line dependency diagnostics
+- Tested on a physical iPhone with Luigi's Mansion 3
+
+### Getting started
+
+See the **[Windows Setup Guide](docs/WINDOWS_SETUP.md)** for installation,
+toolchain configuration, build instructions, and troubleshooting.
+
+Check your development environment:
+
+```powershell
+py scripts/check_windows_setup.py
+```
+
+Build an unsigned IPA:
+
+```powershell
+py scripts/build_ipa_windows.py "D:\\Games\\ExampleGame" -k "D:\\Keys\\prod.keys" -o "D:\\Output\\ExampleGame.ipa"
+```
+
+**Development status:** This Windows workflow has been validated on one
+development machine. Compatibility with additional Windows configurations
+and Switch games remains under testing.
+
+---
+
 > [!TIP]
 > **Prefer an app to the command line?** [NX2Apple](https://github.com/LNPANDY/NX2Apple) is a community Mac app that builds your games for the iPhone, iPad or Mac, keeps the Mac games in a library and starts them with their settings. It is a separate project that follows this one; this page describes nxnative's own command-line way. Building a front end of your own: [Front ends](docs/frontends.md).
 
