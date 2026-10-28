@@ -443,7 +443,7 @@ def main(argv: list[str] | None = None) -> int:
         die('--prepare-xcode generates an Xcode project, which needs a Mac with Xcode and '
             'xcodegen; on Windows the IPA is packed directly (drop the option)')
     env = os.environ
-    repo = Path(env.get('NSPB_REPO') or Path(__file__).resolve().parents[3])
+    repo = Path(__file__).resolve().parents[3]
 
     game = env.get('GAME') or die('GAME is not set (the game profile ID)')
     w = Path(env.get('W') or die('W is not set (the work folder)'))
