@@ -166,6 +166,44 @@ Depending on the Metal compiler and game profile, the build may require
 `--allow-other-metal`. This option permits a compiler outside the tested
 shader translation configuration; graphics correctness is not guaranteed.
 
+### Automatic ROMFSARC generation
+
+The Windows build also produces the game-data archive required by the iOS app.
+After successful IPA packaging it generates a `romfs` directory beside the IPA:
+
+```text
+D:\Output\
+    ExampleGame.ipa
+    romfs\
+        romfs.idx
+        romfs.00
+        romfs.01
+        ...
+```
+
+The archive contains an index and numbered shards; transfer the entire `romfs`
+folder to the installed app's Documents directory. The ROMFS data is **not**
+embedded in the IPA. The default shard target is 200 MiB, but a shard can be
+larger when a single game file exceeds that size; files are never split across
+shards.
+
+The build checks an existing archive for compatibility with the extracted RomFS
+source and reuses it when verification passes, avoiding another multi-gigabyte
+copy. It refuses ambiguous RomFS image selection rather than silently choosing
+the wrong version. Use `--romfs-image` to select the intended image explicitly.
+
+Optional Windows build flags:
+
+- `--romfs-output "D:\Output\romfs"` selects the archive destination.
+- `--romfs-image "D:\Work\extract\v327680\RomFS.img"` selects the extracted source image.
+- `--romfs-shard-mib 200` sets the target shard size in MiB.
+- `--skip-romfs` produces an IPA without generating or verifying an archive.
+
+A missing or failed ROMFS packaging stage causes the integrated build to return
+an error rather than claiming that both artifacts were produced. For additional
+CLI options, run `python scripts/build_ipa_windows.py --help` using your Python
+3.12 virtual environment.
+
 ## 6. Install and provide game data
 
 The output is an unsigned IPA. Sign and install it using a compatible

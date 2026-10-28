@@ -17,7 +17,7 @@ generating unsigned iOS IPAs without requiring macOS or Xcode.
 - Windows ARM64 iOS cross-compilation using LLVM-MinGW
 - Metal shader compilation using Apple's Windows Metal Developer Tools
 - iPhoneOS SDK support
-- ROMFSARC game-data support
+- Automatic ROMFSARC generation, verification, and reuse alongside the IPA
 - Command-line dependency diagnostics
 - Tested on a physical iPhone with Luigi's Mansion 3
 
@@ -37,6 +37,10 @@ Build an unsigned IPA:
 ```powershell
 py -3.12 scripts/build_ipa_windows.py "D:\\Games\\ExampleGame" -k "D:\\Keys\\prod.keys" -o "D:\\Output\\ExampleGame.ipa"
 ```
+
+The Windows build produces an unsigned IPA plus a `romfs` folder containing
+`romfs.idx` and numbered shards. Transfer the folder into the installed
+app's Documents directory. Repeated builds can reuse verified ROMFS data.
 
 **Development status:** This Windows workflow has been validated on one
 development machine. Compatibility with additional Windows configurations
