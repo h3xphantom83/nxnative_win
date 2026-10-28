@@ -300,6 +300,14 @@ def patch(mod: ModuleType, repo: Path, *, j: int | None = None) -> None:
 
     mod.run = run_ipa
 
+    # Windows clang emits "compile: N of M files" instead of Xcode CompileC.
+    # Preserve the upstream watcher, replacing only its misleading summary.
+    from . import progress_reporting as win_progress
+    upstream_watch_line = mod.IpaWatch.line
+    def windows_watch_line(watch, line):
+        return win_progress.on_windows_line(watch, line, upstream_watch_line, mod.PROG)
+    mod.IpaWatch.line = windows_watch_line
+
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point: check the CLI, build the environment, patch, and run upstream."""
@@ -329,7 +337,15 @@ def main(argv: list[str] | None = None) -> int:
     if '-h' in upstream_args or '--help' in upstream_args:
         return result
     try:
-        return romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image)
+        result = romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image)
+        if result == 0:
+            from . import progress_reporting as win_progress
+            ipa = romfs_auto.get_option(upstream_args, '-o')
+            romfs_dir = None if skip_romfs else (
+                romfs_output.resolve() if romfs_output is not None else
+                Path(ipa).resolve().parent / 'romfs' if ipa else None)
+            print(win_progress.completed_output(ipa, romfs_dir, skipped=skip_romfs), flush=True)
+        return result
     except Exception as exc:
         print(f'[ROMFSARC] ERROR: {exc}', file=sys.stderr)
         return 1
