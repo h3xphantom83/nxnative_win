@@ -135,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         if not tc.llvm_tool('ld64.lld') or not tc.ld64_lld():
             hints.append('the Mach-O linker is missing: it comes from ld.lld.exe, created '
                          'automatically once LLVM is in place')
-        if not tc.ios_sdk():
+        if not tc.ios_sdk() and not tc.setting('ios_sdk'):
             hints.append('get an iPhoneOS SDK: python -m nspb_qt.win.doctor --sdk '
                          '(or --sdk-xip Xcode.xip)')
         if not (tc.metal_tool('metal') and tc.metal_tool('metallib')):

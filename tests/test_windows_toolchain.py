@@ -113,3 +113,26 @@ sys.version_info = Version()
     assert result.returncode == 2, result.stderr
     assert "requires Python 3.12.x" in result.stderr
     assert "Detected Python 3.13" in result.stderr
+
+
+def test_doctor_does_not_recommend_download_for_invalid_sdk(monkeypatch, tmp_path, capsys):
+    """An invalid explicit SDK path should prompt correction, not downloading."""
+    from nspb_qt.win import doctor
+
+    invalid = tmp_path / "missing.sdk"
+
+    monkeypatch.setenv("NSPB_IOS_SDK", str(invalid))
+    monkeypatch.setattr(tc, "sdk_cache_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        doctor.shim,
+        "build_env",
+        lambda: {},
+    )
+
+    code = doctor.main(["--no-probe"])
+    output = capsys.readouterr().out
+
+    assert code == 1
+    assert str(invalid) in output
+    assert "Correct NSPB_IOS_SDK" in output
+    assert "get an iPhoneOS SDK:" not in output
