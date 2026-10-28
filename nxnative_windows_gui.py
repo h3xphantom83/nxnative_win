@@ -23,6 +23,7 @@ except ImportError:
 from nxnative_gui_core import BuildOptions, build_arguments, validate
 
 from nxnative_gui_repo import resolve_gui_repository
+from nxnative_gui_python import detect_python, python_is_usable
 from nxnative_gui_result import classify_result, show_result_dialog
 from nxnative_gui_dependencies import doctor_args, parse_doctor_json, summarize
 from nxnative_gui_readiness import readiness_counts
@@ -311,16 +312,19 @@ class Window(QMainWindow):
 
     def restore(self):
         defaults = {
-            'game': r'E:\NXBuild\Luigi3_ColdBuild_Test\GameSource',
-            'keys': r'E:\Nintendo Switch\prod.keys',
-            'ipa': r'E:\NXBuild\Luigi3_ColdBuild_Test\Luigi3_Complete.ipa',
-            'python': r'E:\nxnative_clean_test\.venv\Scripts\python.exe',
+            'game': '',
+            'keys': '',
+            'ipa': '',
+            'python': detect_python(REPO),
         }
         for name, default in defaults.items():
             value = self.settings.value(name, None)
-            if value is None:
-                value = default if name == 'ipa' else default_if_exists(default)
-            getattr(self, name).edit.setText(str(value))
+            if name == 'python':
+                if not python_is_usable(str(value or '')):
+                    value = default
+            elif value is None:
+                value = default
+            getattr(self, name).edit.setText(str(value or ''))
         for field, widget in [('allow_metal',self.allow_metal),('validate_ipa',self.validate_ipa),
                               ('full',self.full),('manifest',self.manifest),('skip',self.skip)]:
             saved = self.settings.value(field, None)
