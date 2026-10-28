@@ -33,7 +33,31 @@ git clone -b windows-dev https://github.com/h3xphantom83/nxnative_win.git
 cd nxnative_win
 ```
 
-## 2. Check the development environment
+## 2. Run the Windows setup assistant
+
+For a first-time installation, start with:
+
+```powershell
+py -3.12 scripts/setup_windows.py
+```
+
+The setup assistant:
+
+- Validates the required Windows development tools
+- Performs real ARM64 compiler and linker checks
+- Tests Metal shader compilation
+- Displays missing dependencies and suggested fixes
+- Returns exit code 0 when all required checks pass
+
+The assistant is diagnostic-only. It does not download, install,
+uninstall, or modify any development dependencies.
+
+If a required component is missing, resolve the reported issue and
+run the assistant again.
+
+## 3. Check the development environment
+
+
 
 ```powershell
 py -3.12 scripts/check_windows_setup.py
@@ -53,7 +77,7 @@ py -3.12 scripts/check_windows_setup.py --json
 
 All required checks should pass before attempting a game build.
 
-## 3. Install missing components
+## 4. Install missing components
 
 The existing Windows doctor supports several explicit installation actions.
 
@@ -78,7 +102,7 @@ to the doctor's diagnostics.
 
 After configuration, rerun the full dependency check.
 
-## 4. Build an unsigned IPA
+## 5. Build an unsigned IPA
 
 Place the base game and any supported update NSP files into the game's
 input directory.
@@ -103,7 +127,7 @@ Depending on the Metal compiler and game profile, the build may require
 `--allow-other-metal`. This option permits a compiler outside the tested
 shader translation configuration; graphics correctness is not guaranteed.
 
-## 5. Install and provide game data
+## 6. Install and provide game data
 
 The output is an unsigned IPA. Sign and install it using a compatible
 iOS installation workflow.
@@ -126,7 +150,7 @@ into individual game files.
 The Windows fork supports ROMFSARC startup detection and archive-backed
 file access.
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### Missing compiler or linker
 

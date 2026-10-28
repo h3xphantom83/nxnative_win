@@ -29,7 +29,7 @@ toolchain configuration, build instructions, and troubleshooting.
 Check your development environment:
 
 ```powershell
-py -3.12 scripts/check_windows_setup.py
+py -3.12 scripts/setup_windows.py
 ```
 
 Build an unsigned IPA:
