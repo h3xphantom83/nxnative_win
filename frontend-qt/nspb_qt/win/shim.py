@@ -170,7 +170,12 @@ if os.name == 'nt' and not os.environ.get('NSPB_SHIM_OFF'):
         exe = _CACHE[key]
         if not exe:
             return None
-        return [str(exe)] + (x.metal_args(sdk, rest[3:]) if tool == 'metal' else rest[3:])
+        tool_args = x.metal_args(sdk, rest[3:]) if tool == 'metal' else rest[3:]
+        if any(isinstance(a, str) and any(c.isspace() for c in a)
+               for a in tool_args):
+            return [sys.executable, os.path.join(_PKG, 'metal_paths.py'),
+                    str(exe), *tool_args]
+        return [str(exe), *tool_args]
 
     def _map(args):
         if isinstance(args, (str, bytes)) or not args:
