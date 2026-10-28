@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 import re
 import sys
 from pathlib import Path
@@ -22,6 +23,7 @@ except ImportError:
 from nxnative_gui_core import BuildOptions, build_arguments, validate
 
 from nxnative_gui_paths import find_repo
+from nxnative_gui_result import classify_result, show_result_dialog
 from nxnative_gui_dependencies import doctor_args, parse_doctor_json, summarize
 from nxnative_gui_readiness import readiness_counts
 
@@ -85,6 +87,8 @@ class Window(QMainWindow):
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.read_log)
         self.process.finished.connect(self.finished)
+        self.process.finished.connect(self.show_build_result)
+        self.process.errorOccurred.connect(self.show_build_start_failure)
         self.process.errorOccurred.connect(self.process_error)
         self.doctor_process = QProcess(self)
         self.doctor_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -361,9 +365,16 @@ class Window(QMainWindow):
             return
         self.save_settings()
         self.stop_requested = False
+        self._result_notified = False
         self.progress.setValue(0)
         self.log.clear()
-        argv = build_arguments(opts, REPO)
+        # GUI_POSTVALIDATION_V1: Keep --validate-ipa out of upstream build argv.
+        # After build success, verify the completed IPA in a separate process.
+        self._postvalidate_requested = opts.validate_ipa
+        self._postvalidate_stage = 'build'
+        self._postvalidate_failed = False
+        self._postvalidate_ipa = opts.ipa_file
+        argv = build_arguments(replace(opts, validate_ipa=False), REPO)
         # For safety, do not print the keys-file argument or its path in logs.
         self.append_log(f'[GUI] Starting Windows build with Python: {py}')
         self.append_log(f'[GUI] IPA destination: {opts.ipa_file}')
@@ -390,6 +401,33 @@ class Window(QMainWindow):
             self.status.setText('Failed to start')
             self.update_controls(False)
 
+    def show_build_result(self, exit_code, exit_status):
+        """Show exactly one graphical result for a completed build and validation."""
+        if getattr(self, '_postvalidate_stage', '') == 'validation':
+            return  # The build finished, but validation is still running.
+        if getattr(self, '_result_notified', False):
+            return
+        self._result_notified = True
+        crash = exit_status != QProcess.ExitStatus.NormalExit
+        if getattr(self, '_postvalidate_failed', False):
+            kind, title, detail = ('error', 'IPA validation failed',
+                                   'Unable to run IPA validation. Review the build log.')
+        else:
+            kind, title, detail = classify_result(
+                exit_code, crash, self.stop_requested, self.ipa.value()
+            )
+        show_result_dialog(self, kind, title, detail, self.ipa.value())
+
+    def show_build_start_failure(self, error):
+        """Report a process that never started; avoid duplicate popups."""
+        if error != QProcess.ProcessError.FailedToStart:
+            return
+        if getattr(self, '_result_notified', False):
+            return
+        self._result_notified = True
+        show_result_dialog(self, 'error', 'Unable to start build',
+                           'Python could not start. Check the selected interpreter and build log.')
+
     def append_log(self, line):
         self.log.appendPlainText(line.rstrip('\r\n'))
         match = STAGES.search(line)
@@ -410,20 +448,56 @@ class Window(QMainWindow):
             self.append_log(line)
 
     def finished(self, code, status):
+        """Finish the build; optionally run separate IPA validation before notifying."""
         self.read_log()
         if self.current_log:
             self.append_log(self.current_log)
             self.current_log = ''
+
+        stage = getattr(self, '_postvalidate_stage', 'build')
+        successful = code == 0 and status == QProcess.ExitStatus.NormalExit
+        if (stage == 'build' and successful and not self.stop_requested
+                and getattr(self, '_postvalidate_requested', False)):
+            ipa = Path(self._postvalidate_ipa)
+            validator = REPO / 'scripts' / 'validate_ipa.py'
+            if not ipa.is_file() or not validator.is_file():
+                self._postvalidate_stage = 'complete'
+                detail = 'IPA not found' if not ipa.is_file() else 'IPA validator not found'
+                self.append_log('[GUI] Validation failed: ' + detail)
+                self.status.setText('Validation failed')
+                self.update_controls(False)
+                # The completion signal's result handler sees the original exit=0;
+                # mark this as a failure via the explicit override below.
+                self._postvalidate_failed = True
+                return
+            self._postvalidate_stage = 'validation'
+            self._postvalidate_failed = False
+            self.status.setText('Validating IPA…')
+            self.append_log('[GUI] Validating completed IPA: ' + str(ipa))
+            self.process.setProgram(str(Path(self.python.value())))
+            self.process.setArguments(['-u', str(validator), str(ipa)])
+            self.process.start()
+            if not self.process.waitForStarted(4000):
+                self._postvalidate_stage = 'complete'
+                self._postvalidate_failed = True
+                self.append_log('[GUI] Failed to start IPA validator: '
+                                + self.process.errorString())
+                self.status.setText('Validation failed to start')
+                self.update_controls(False)
+            return
+
+        self._postvalidate_stage = 'complete'
         if self.stop_requested:
             self.status.setText('Build stopped')
             self.append_log('[GUI] Build stopped by user')
-        elif code == 0 and status == QProcess.ExitStatus.NormalExit:
+        elif successful and not getattr(self, '_postvalidate_failed', False):
             self.progress.setValue(100)
             self.status.setText('Build completed successfully')
-            self.append_log('[GUI] Python exited successfully (exit code 0)')
+            self.append_log('[GUI] Build and selected checks completed successfully')
         else:
-            self.status.setText(f'Build failed (exit code {code})')
-            self.append_log(f'[GUI] Build failed: exit code {code}; status {status}')
+            label = 'IPA validation failed' if stage == 'validation' else 'Build failed'
+            self.status.setText(f'{label} (exit code {code})')
+            self.append_log(f'[GUI] {label}: exit code {code}; status {status}')
         self.update_controls(False)
 
     def process_error(self, error):

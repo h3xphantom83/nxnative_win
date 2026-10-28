@@ -1,4 +1,4 @@
-﻿"""Tests for optional Windows IPA validation integration."""
+"""Tests for optional Windows IPA validation integration."""
 
 import subprocess
 from pathlib import Path
@@ -51,6 +51,7 @@ def test_driver_suppresses_completion_on_ipa_failure(
     from nspb_qt.win import romfs_integration, shim
 
     upstream = SimpleNamespace(cli=lambda args: 0)
+    events = []
 
     monkeypatch.setattr(driver, "check_cli", lambda args: None)
     monkeypatch.setattr(driver, "repo_dir", lambda: tmp_path)
@@ -62,20 +63,19 @@ def test_driver_suppresses_completion_on_ipa_failure(
         lambda **kwargs: dict(__import__("os").environ),
     )
 
+    def romfs_success(*args, **kwargs):
+        events.append("romfs")
+        return 0
+
     def validation_failure(repo, args):
+        events.append("validation")
         raise ValueError("Simulated invalid IPA")
 
     monkeypatch.setattr(
-        ipa_validation, "validate", validation_failure
+        romfs_integration, "finish_build", romfs_success
     )
-
-    def must_not_run(*args, **kwargs):
-        raise AssertionError(
-            "ROMFS processing must not run after invalid IPA"
-        )
-
     monkeypatch.setattr(
-        romfs_integration, "finish_build", must_not_run
+        ipa_validation, "validate", validation_failure
     )
 
     result = driver.main([
@@ -87,6 +87,6 @@ def test_driver_suppresses_completion_on_ipa_failure(
     output = capsys.readouterr()
 
     assert result == 1
+    assert events == ["romfs", "validation"]
     assert "Simulated invalid IPA" in output.err
     assert "BUILD COMPLETE" not in output.out
-    assert "BUILD COMPLETE" not in output.err

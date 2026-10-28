@@ -334,16 +334,17 @@ def main(argv: list[str] | None = None) -> int:
         upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image = romfs_auto.extract_flags(argv)
     except (ValueError, TypeError) as exc:
         raise SystemExit(f'[ROMFSARC] Invalid argument: {exc}') from exc
+    sys.argv = [sys.argv[0], *upstream_args]
     result = mod.cli(upstream_args)
     if result:
         return result
     if '-h' in upstream_args or '--help' in upstream_args:
         return result
     try:
-        if validate_ipa:
-            ipa_check.validate(repo, upstream_args)
         result = romfs_auto.finish_build(repo, upstream_args, skip_romfs, romfs_output, shard_mib, romfs_image, verify_full=verify_full, write_manifest=write_manifest)
         if result == 0:
+            if validate_ipa:
+                ipa_check.validate(repo, upstream_args)
             from . import progress_reporting as win_progress
             ipa = romfs_auto.get_option(upstream_args, '-o')
             romfs_dir = None if skip_romfs else (
