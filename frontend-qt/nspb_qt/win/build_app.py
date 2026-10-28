@@ -562,6 +562,16 @@ def main(argv: list[str] | None = None) -> int:
 
     base = w / 'build/ios/win'
     gen, app = base / 'Gen', base / 'Payload/DmIOS.app'
+    profile_header = gen / 'profile/game_profile.h'
+    previous_profile = (
+        (profile_header.read_bytes(), profile_header.stat())
+        if profile_header.is_file() else None
+    )
+    embed_header = gen / 'embed.S'
+    previous_embed = (
+        (embed_header.read_bytes(), embed_header.stat())
+        if embed_header.is_file() else None
+    )
     shutil.rmtree(gen, ignore_errors=True)
     shutil.rmtree(app, ignore_errors=True)
     (gen / 'profile').mkdir(parents=True)
@@ -569,13 +579,30 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- generate Gen/ (the same generators build_ipa.sh calls)
     t('generate Gen/ (profile header, embedded modules, tables)')
-    py(repo / 'dm/games/game.py', 'header', game, gen / 'profile/game_profile.h')
+    py(repo / 'dm/games/game.py', 'header', game, profile_header)
+    if previous_profile is not None:
+        old_bytes, old_stat = previous_profile
+        if profile_header.read_bytes() == old_bytes:
+            os.utime(profile_header, ns=(
+                old_stat.st_atime_ns, old_stat.st_mtime_ns
+            ))
+            t('profile header: unchanged, original timestamp preserved')
+        else:
+            t('profile header: changed, dependent objects will rebuild')
     es = gen / 'embed.S'
     flags = py(repo / 'dm/ios/tools/gen_embed.py', patched, es, *mods)
     # the assembler treats '\' as an escape in .incbin paths
     es.write_text(re.sub(r'\.incbin "([^"]*)"',
                          lambda mm: '.incbin "' + mm.group(1).replace('\\', '/') + '"',
                          es.read_text(encoding='utf-8')), encoding='utf-8')
+
+    if previous_embed is not None:
+        old_bytes, old_stat = previous_embed
+        if es.read_bytes() == old_bytes:
+            os.utime(es, ns=(old_stat.st_atime_ns, old_stat.st_mtime_ns))
+            t('embed assembly: unchanged, original timestamp preserved')
+        else:
+            t('embed assembly: changed, object will rebuild')
 
     dmres = app / 'dm'
     dmres.mkdir()
